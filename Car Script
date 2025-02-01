@@ -1,0 +1,121 @@
+-- My Custom Enhanced Script
+
+local MyLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/Documantation12/Universal-Vehicle-Script/main/Library.lua"))()
+local MyUI = MyLibrary.new("Custom Vehicle Script - Made by Genesis_ui", 5013109572)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- UI Theme
+local Theme = {
+    Background = Color3.fromRGB(30, 30, 50), 
+    Glow = Color3.fromRGB(90, 90, 255), 
+    Accent = Color3.fromRGB(70, 70, 140), 
+    LightContrast = Color3.fromRGB(50, 50, 80), 
+    DarkContrast = Color3.fromRGB(25, 25, 40),  
+    TextColor = Color3.fromRGB(255, 255, 255)
+}
+
+for index, value in pairs(Theme) do
+    pcall(function() MyUI:setTheme(index, value) end)
+end
+
+-- Vehicle Control
+local function GetVehicle(Part)
+    if not Part then return nil end
+    return Part:FindFirstAncestor(LocalPlayer.Name .. "'s Car")
+        or Part:FindFirstAncestorWhichIsA("Model")
+end
+
+local function MoveVehicle(CoordinateFrame)
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    
+    local Vehicle = GetVehicle(Character:FindFirstChildWhichIsA("Humanoid") and Character:FindFirstChildWhichIsA("Humanoid").SeatPart)
+    if not Vehicle then return end
+    
+    Vehicle:SetPrimaryPartCFrame(CoordinateFrame)
+end
+
+local vehiclePage = MyUI:addPage("Vehicle", 8356815386)
+local controlSection = vehiclePage:addSection("Flight, Speed & Brakes")
+
+local flightEnabled, speedBoost, brakingEnabled = false, false, true
+local flightSpeed, speedMultiplier, brakeStrength = 1, 0.025, 0.15
+
+controlSection:addToggle("Enable Flight", false, function(v) flightEnabled = v end)
+controlSection:addSlider("Flight Speed", 100, 0, 800, function(v) flightSpeed = v / 100 end)
+controlSection:addToggle("Enable Speed Boost", false, function(v) speedBoost = v end)
+controlSection:addSlider("Speed Multiplier", 25, 0, 100, function(v) speedMultiplier = v / 1000 end)
+controlSection:addToggle("Enable Brakes", true, function(v) brakingEnabled = v end)
+controlSection:addSlider("Brake Strength", 15, 0, 50, function(v) brakeStrength = v / 100 end)
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    
+    local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid then return end
+    
+    local SeatPart = Humanoid.SeatPart
+    if not SeatPart or not SeatPart:IsA("VehicleSeat") then return end
+    
+    local Vehicle = GetVehicle(SeatPart)
+    if not Vehicle then return end
+    
+    if not Vehicle.PrimaryPart then
+        local basePart = Vehicle:FindFirstChildWhichIsA("BasePart")
+        if basePart then
+            Vehicle.PrimaryPart = basePart
+        else
+            return
+        end
+    end
+    
+    if flightEnabled then
+        local PrimaryPartCFrame = Vehicle:GetPrimaryPartCFrame()
+        local moveVector = Vector3.new(0, 0, 0)
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveVector = moveVector + workspace.CurrentCamera.CFrame.LookVector * flightSpeed
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveVector = moveVector - workspace.CurrentCamera.CFrame.LookVector * flightSpeed
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveVector = moveVector - workspace.CurrentCamera.CFrame.RightVector * flightSpeed
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveVector = moveVector + workspace.CurrentCamera.CFrame.RightVector * flightSpeed
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.E) then
+            moveVector = moveVector + Vector3.new(0, flightSpeed, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Q) then
+            moveVector = moveVector - Vector3.new(0, flightSpeed, 0)
+        end
+        
+        -- Deaktiviere Schwerkraft für das Fahrzeug
+        for _, part in pairs(Vehicle:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                part.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+        
+        MoveVehicle(PrimaryPartCFrame + moveVector * deltaTime * 60)
+    end
+
+    if speedBoost and UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        SeatPart.AssemblyLinearVelocity *= Vector3.new(1 + speedMultiplier, 1, 1 + speedMultiplier)
+    end
+
+    if brakingEnabled and UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        SeatPart.AssemblyLinearVelocity *= Vector3.new(1 - brakeStrength, 1, 1 - brakeStrength)
+    end
+end)
+
+repeat task.wait() until game:IsLoaded() and game.PlaceId > 0
