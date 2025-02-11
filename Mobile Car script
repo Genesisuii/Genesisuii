@@ -1,4 +1,4 @@
--- My Custom Enhanced Script (Mobile Version)
+-- My Custom Enhanced Script (Mobile-Compatible Version)
 
 local MyLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/Documantation12/Universal-Vehicle-Script/main/Library.lua"))()
 local MyUI = nil
@@ -69,56 +69,6 @@ controlSection:addSlider("Speed Multiplier", 25, 0, 100, function(v) speedMultip
 controlSection:addToggle("Enable Brakes", true, function(v) brakingEnabled = v end)
 controlSection:addSlider("Brake Strength", 15, 0, 50, function(v) brakeStrength = v / 100 end)
 
--- Mobile Touch Controls
-local touchControls = {
-    forward = false,
-    backward = false,
-    left = false,
-    right = false,
-    up = false,
-    down = false
-}
-
-local buttonFrame = Instance.new("ScreenGui", game.CoreGui)
-buttonFrame.Name = "MobileControls"
-
-local function createButton(name, position, onTouch)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 80, 0, 80)
-    button.Position = position
-    button.Text = name
-    button.BackgroundColor3 = Color3.fromRGB(70, 70, 140)
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.Parent = buttonFrame
-
-    button.TouchTap:Connect(onTouch)
-    return button
-end
-
-createButton("Up", UDim2.new(0.9, 0, 0.4, 0), function()
-    touchControls.up = not touchControls.up
-end)
-
-createButton("Down", UDim2.new(0.9, 0, 0.55, 0), function()
-    touchControls.down = not touchControls.down
-end)
-
-createButton("Forward", UDim2.new(0.05, 0, 0.75, 0), function()
-    touchControls.forward = not touchControls.forward
-end)
-
-createButton("Backward", UDim2.new(0.15, 0, 0.75, 0), function()
-    touchControls.backward = not touchControls.backward
-end)
-
-createButton("Left", UDim2.new(0.05, 0, 0.85, 0), function()
-    touchControls.left = not touchControls.left
-end)
-
-createButton("Right", UDim2.new(0.15, 0, 0.85, 0), function()
-    touchControls.right = not touchControls.right
-end)
-
 RunService.RenderStepped:Connect(function(deltaTime)
     local Character = LocalPlayer.Character
     if not Character then return end
@@ -145,23 +95,17 @@ RunService.RenderStepped:Connect(function(deltaTime)
         local PrimaryPartCFrame = Vehicle:GetPrimaryPartCFrame()
         local moveVector = Vector3.new(0, 0, 0)
 
-        if touchControls.forward then
-            moveVector = moveVector + workspace.CurrentCamera.CFrame.LookVector * flightSpeed
-        end
-        if touchControls.backward then
-            moveVector = moveVector - workspace.CurrentCamera.CFrame.LookVector * flightSpeed
-        end
-        if touchControls.left then
-            moveVector = moveVector - workspace.CurrentCamera.CFrame.RightVector * flightSpeed
-        end
-        if touchControls.right then
-            moveVector = moveVector + workspace.CurrentCamera.CFrame.RightVector * flightSpeed
-        end
-        if touchControls.up then
-            moveVector = moveVector + Vector3.new(0, flightSpeed, 0)
-        end
-        if touchControls.down then
-            moveVector = moveVector - Vector3.new(0, flightSpeed, 0)
+        -- Mobile Gyroscope Support
+        if UserInputService.GyroscopeEnabled then
+            local gyro = UserInputService:GetDeviceRotation()
+            moveVector = moveVector + (gyro.LookVector * flightSpeed)
+        else
+            -- Fallback: Touch Drag Movement
+            if UserInputService.TouchEnabled then
+                for _, touch in ipairs(UserInputService:GetTouches()) do
+                    moveVector = moveVector + Vector3.new(touch.Position.X/1000, 0, -touch.Position.Y/1000) * flightSpeed
+                end
+            end
         end
 
         for _, part in pairs(Vehicle:GetDescendants()) do
@@ -175,11 +119,11 @@ RunService.RenderStepped:Connect(function(deltaTime)
         MoveVehicle(PrimaryPartCFrame + moveVector * deltaTime * 60)
     end
 
-    if speedBoost and touchControls.forward then
+    if speedBoost then
         SeatPart.AssemblyLinearVelocity *= Vector3.new(1 + speedMultiplier, 1, 1 + speedMultiplier)
     end
 
-    if brakingEnabled and touchControls.backward then
+    if brakingEnabled then
         SeatPart.AssemblyLinearVelocity *= Vector3.new(1 - brakeStrength, 1, 1 - brakeStrength)
     end
 end)
